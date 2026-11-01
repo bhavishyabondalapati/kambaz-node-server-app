@@ -1,4 +1,5 @@
 import AssignmentsDao from "./dao.js";
+import { requireFacultyOrAdmin, requireLogin } from "../auth.js";
 
 export default function AssignmentsRoutes(app) {
   const dao = AssignmentsDao();
@@ -41,9 +42,12 @@ export default function AssignmentsRoutes(app) {
     res.json(assignmentObject);
   };
 
+  // Reading stays open for the course pages; changes need a signed-in faculty member or admin.
+  const canEdit = [requireLogin(), requireFacultyOrAdmin];
+
   app.get("/api/courses/:courseId/assignments", findAssignmentsForCourse);
-  app.post("/api/courses/:courseId/assignments", createAssignmentForCourse);
-  app.delete("/api/assignments/:assignmentId", deleteAssignment);
-  app.put("/api/assignments/:assignmentId", updateAssignment);
+  app.post("/api/courses/:courseId/assignments", ...canEdit, createAssignmentForCourse);
+  app.delete("/api/assignments/:assignmentId", ...canEdit, deleteAssignment);
+  app.put("/api/assignments/:assignmentId", ...canEdit, updateAssignment);
   app.get("/api/assignments/:assignmentId", findAssignmentById);
 }

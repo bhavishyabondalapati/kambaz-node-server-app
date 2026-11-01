@@ -1,5 +1,18 @@
+import mongoose from "mongoose";
 import model from "./model.js";
 import { v4 as uuidv4 } from "uuid";
+
+// Escape regex special characters so a search string is matched literally
+// (no injected patterns, no catastrophic backtracking).
+const literal = (text) => new RegExp(text.replace(/[.*+?^${}()|[\]\\]/g, "\\$&"), "i");
+
+// sanitizeFilter is on (see app.js), so operators we add on purpose must be marked trusted.
+const nameMatches = (regex) => ({
+  $or: [
+    { firstName: mongoose.trusted({ $regex: regex }) },
+    { lastName: mongoose.trusted({ $regex: regex }) },
+  ],
+});
 
 export default function UsersDao() {
   const createUser = (user) => {
@@ -14,8 +27,9 @@ export default function UsersDao() {
   const findUserByUsername = (username) => 
     model.findOne({ username: username });
   
-  const findUserByCredentials = (username, password) => 
-    model.findOne({ username, password });
+  // The only query that returns the password hash, for checking it at sign-in.
+  const findUserWithPassword = (username) =>
+    model.findOne({ username: username }).select("+password");
   
   const findUsersByRole = (role) => model.find({ role: role });
   
@@ -24,35 +38,13 @@ export default function UsersDao() {
     
     // If single word, search firstName OR lastName
     if (!trimmed.includes(' ')) {
-      const regex = new RegExp(trimmed, "i");
-      return model.find({
-        $or: [
-          { firstName: { $regex: regex } },
-          { lastName: { $regex: regex } }
-        ],
-      });
+      return model.find(nameMatches(literal(trimmed)));
     }
     
     // If multiple words, search firstName AND lastName
     const words = trimmed.split(/\s+/);
-    const firstWord = new RegExp(words[0], "i");
-    const lastWord = new RegExp(words[words.length - 1], "i");
-    
     return model.find({
-      $and: [
-        {
-          $or: [
-            { firstName: { $regex: firstWord } },
-            { lastName: { $regex: firstWord } }
-          ]
-        },
-        {
-          $or: [
-            { firstName: { $regex: lastWord } },
-            { lastName: { $regex: lastWord } }
-          ]
-        }
-      ]
+      $and: [nameMatches(literal(words[0])), nameMatches(literal(words[words.length - 1]))],
     });
   };
   
@@ -66,7 +58,7 @@ export default function UsersDao() {
     findAllUsers, 
     findUserById, 
     findUserByUsername, 
-    findUserByCredentials, 
+    findUserWithPassword,
     findUsersByRole,
     findUsersByPartialName,
     updateUser, 

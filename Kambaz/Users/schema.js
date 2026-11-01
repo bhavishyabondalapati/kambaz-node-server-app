@@ -4,7 +4,9 @@ const userSchema = new mongoose.Schema(
   {
     _id: String,
     username: { type: String, required: true, unique: true },
-    password: { type: String, required: true },
+    // bcrypt hash. select: false keeps it out of every query result unless asked for.
+    password: { type: String, required: true, select: false },
+    mustResetPassword: { type: Boolean, default: false },
     firstName: String,
     email: String,
     lastName: String,

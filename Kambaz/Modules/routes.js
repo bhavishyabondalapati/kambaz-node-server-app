@@ -1,4 +1,5 @@
 import ModulesDao from "./dao.js";
+import { requireFacultyOrAdmin, requireLogin } from "../auth.js";
 
 export default function ModulesRoutes(app) {
   const dao = ModulesDao();
@@ -29,8 +30,11 @@ export default function ModulesRoutes(app) {
     res.json(status);
   };
 
+  // Reading stays open for the course pages; changes need a signed-in faculty member or admin.
+  const canEdit = [requireLogin(), requireFacultyOrAdmin];
+
   app.get("/api/courses/:courseId/modules", findModulesForCourse);
-  app.post("/api/courses/:courseId/modules", createModuleForCourse);
-  app.delete("/api/courses/:courseId/modules/:moduleId", deleteModule);
-  app.put("/api/courses/:courseId/modules/:moduleId", updateModule);
+  app.post("/api/courses/:courseId/modules", ...canEdit, createModuleForCourse);
+  app.delete("/api/courses/:courseId/modules/:moduleId", ...canEdit, deleteModule);
+  app.put("/api/courses/:courseId/modules/:moduleId", ...canEdit, updateModule);
 }
